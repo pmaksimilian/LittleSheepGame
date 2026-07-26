@@ -9,7 +9,7 @@ public class SheepController : MonoBehaviour
     [SerializeField] private float minWaitTime = 3f;
     [SerializeField] private float maxWaitTime = 7f;
     [SerializeField] private LayerMask obstacleLayer;
-    [SerializeField] private float fleeDistance = 2f;
+    [SerializeField] private float fleeDistance = 3f;
     [SerializeField] private float fleeSpeed = 5f;
     [SerializeField] private GameObject sheepVisual;
 
@@ -19,6 +19,8 @@ public class SheepController : MonoBehaviour
     private Animator animator;
     private float lastInputX;
     private float lastInputY;
+    private Coroutine waitCoroutine;
+    private bool isFleeing = false;
 
     void Start()
     {
@@ -33,22 +35,39 @@ public class SheepController : MonoBehaviour
 
         if (distanceToPlayer < fleeDistance)
         {
+            isFleeing = true;
             FleeFromPlayer();
         }
-        else if (!isWaiting)
+        else
         {
-            MoveToWaypoint();
+            if (isFleeing)
+            {
+                isFleeing = false;
+                StartWaiting();
+            }
+            else if (!isWaiting)
+            {
+                MoveToWaypoint();
+            }
         }
     }
 
     private void FleeFromPlayer()
     {
-        Vector2 fleeDirection = (Vector2)transform.position - (Vector2)playerTransform.position;
-        Vector2 fleeTarget = (Vector2)transform.position + fleeDirection.normalized * fleeDistance;
+        Vector2 fleeDirection = ((Vector2)transform.position - (Vector2)playerTransform.position).normalized;
+        Vector2 fleeTarget = (Vector2)transform.position + fleeDirection * fleeDistance;
+
+        if (fleeDirection.magnitude > 0f)
+        {
+            lastInputX = fleeDirection.x;
+            lastInputY = fleeDirection.y;
+        }
 
         transform.position = Vector2.MoveTowards(transform.position, fleeTarget, fleeSpeed * Time.deltaTime);
 
-        StartCoroutine(WaitAtPoint());
+        animator.SetFloat("InputX", fleeDirection.x);
+        animator.SetFloat("InputY", fleeDirection.y);
+        animator.SetBool("IsWalking", true);
     }
 
     private void MoveToWaypoint()
@@ -69,8 +88,17 @@ public class SheepController : MonoBehaviour
 
         if (Vector2.Distance(transform.position, currentTarget) < 0.1f)
         {
-            StartCoroutine(WaitAtPoint());
+            StartWaiting();
         }
+    }
+
+    private void StartWaiting()
+    {
+        if (waitCoroutine != null)
+        {
+            StopCoroutine(waitCoroutine);
+        }
+        waitCoroutine = StartCoroutine(WaitAtPoint());
     }
 
     private IEnumerator WaitAtPoint()

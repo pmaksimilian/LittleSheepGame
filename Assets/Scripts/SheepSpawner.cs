@@ -5,19 +5,33 @@ public class SheepSpawner : MonoBehaviour
     [SerializeField] private GameObject sheepPrefab;
     [SerializeField] private int sheepCount = 15;
 
-    [SerializeField] private Vector2 spawnAreaMin = new Vector2(-12f, -8f);
-    [SerializeField] private Vector2 spawnAreaMax = new Vector2(14f, 4f);
+    [SerializeField] private Collider2D spawnArea;
 
     void Start()
     {
         for (int i = 0; i < sheepCount; i++)
         {
-            Vector2 pos = new Vector2(
-                Random.Range(spawnAreaMin.x, spawnAreaMax.x),
-                Random.Range(spawnAreaMin.y, spawnAreaMax.y)
-            );
+            Vector2 pos = GetRandomPositionInArea();
 
             Instantiate(sheepPrefab, pos, Quaternion.identity);
         }
+    }
+
+    private Vector2 GetRandomPositionInArea()
+    {
+        Bounds bounds = spawnArea.bounds;
+        Vector2 point;
+        int attempts = 0;
+
+        do
+        {
+            float x = Random.Range(bounds.min.x, bounds.max.x);
+            float y = Random.Range(bounds.min.y, bounds.max.y);
+            point = new Vector2(x, y);
+            attempts++;
+        }
+        while (!spawnArea.OverlapPoint(point) && attempts < 30);
+
+        return point;
     }
 }

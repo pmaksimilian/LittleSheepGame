@@ -127,7 +127,7 @@ MonoBehaviour:
   obstacleLayer:
     serializedVersion: 2
     m_Bits: 8
-  fleeDistance: 2
+  fleeDistance: 3
   fleeSpeed: 5
   sheepVisual: {fileID: 7111314599734497811}
 --- !u!1 &7111314599734497811
