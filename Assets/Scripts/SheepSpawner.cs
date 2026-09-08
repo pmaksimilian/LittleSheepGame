@@ -2,10 +2,24 @@ using UnityEngine;
 
 public class SheepSpawner : MonoBehaviour
 {
+    public static SheepSpawner Instance { get; private set; }
+
     [SerializeField] private GameObject sheepPrefab;
     [SerializeField] private int sheepCount = 15;
 
     [SerializeField] private Collider2D spawnArea;
+
+    void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
 
     void Start()
     {
@@ -33,5 +47,10 @@ public class SheepSpawner : MonoBehaviour
         while (!spawnArea.OverlapPoint(point) && attempts < 30);
 
         return point;
+    }
+
+    public int GetSheepCount()
+    {
+        return sheepCount;
     }
 }
