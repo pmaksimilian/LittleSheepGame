@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class SheepSpawner : MonoBehaviour
 {
@@ -8,6 +9,10 @@ public class SheepSpawner : MonoBehaviour
     [SerializeField] private int sheepCount = 15;
 
     [SerializeField] private Collider2D spawnArea;
+
+    [SerializeField] private GameObject finishedCanvas;
+
+    private PauseController pauseController;
 
     void Awake()
     {
@@ -23,6 +28,8 @@ public class SheepSpawner : MonoBehaviour
 
     void Start()
     {
+        finishedCanvas.SetActive(false);
+
         for (int i = 0; i < sheepCount; i++)
         {
             Vector2 pos = GetRandomPositionInArea();
@@ -52,5 +59,35 @@ public class SheepSpawner : MonoBehaviour
     public int GetSheepCount()
     {
         return sheepCount;
+    }
+
+    public void PauseGame(bool pause)
+    {
+        if (pauseController == null)
+        {
+            pauseController = GetComponent<PauseController>();
+        }
+
+        if (pauseController != null)
+        {
+            pauseController.SetPause(pause);
+        }
+        else
+        {
+            Debug.LogWarning("PauseController component not found on SheepSpawner.");
+        }
+    }
+
+    public void GameOver()
+    {
+        finishedCanvas.SetActive(true);
+
+        PauseGame(true);
+    }
+
+    public void RestartGame()
+    {
+        SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
+        PauseGame(false);
     }
 }

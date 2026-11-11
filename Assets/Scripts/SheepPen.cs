@@ -21,6 +21,12 @@ public class SheepPen : MonoBehaviour
             Destroy(collider.gameObject);
             Debug.Log("Sheep entered the pen. Total sheep: " + sheepCount);
             TextChange();
+
+            if (sheepCount >= SheepSpawner.Instance.GetSheepCount())
+            {
+                Debug.Log("All sheep have been collected!");
+                SheepSpawner.Instance.GameOver();
+            }
         }
     }
 
