@@ -15607,7 +15607,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SheepSpawner
   sheepPrefab: {fileID: 4524162131247506521, guid: dd7c74982681a70bead976c239e65ed1, type: 3}
-  sheepCount: 1
+  sheepCount: 10
   spawnArea: {fileID: 1985943635}
   finishedCanvas: {fileID: 1304187756}
 --- !u!4 &887632611

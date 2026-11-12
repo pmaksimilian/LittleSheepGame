@@ -124,11 +124,20 @@ MonoBehaviour:
   moveSpeed: 0.7
   minWaitTime: 3
   maxWaitTime: 7
+  stuckTimeout: 1.5
   obstacleLayer:
     serializedVersion: 2
     m_Bits: 8
   fleeDistance: 3
   fleeSpeed: 5
+  neighborRadius: 2.5
+  alarmRadius: 2
+  alarmDuration: 1
+  fleeTurnSpeed: 8
+  dogWeight: 1
+  alignmentWeight: 1
+  cohesionWeight: 0.3
+  separationWeight: 0.8
   sheepVisual: {fileID: 7111314599734497811}
 --- !u!1 &7111314599734497811
 GameObject:

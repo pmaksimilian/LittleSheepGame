@@ -1,17 +1,35 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class SheepController : MonoBehaviour
 {
+    [Header("Wandering")]
     [SerializeField] private float wanderRadius = 1.5f;
     [SerializeField] private float moveSpeed = 0.7f;
     [SerializeField] private float minWaitTime = 3f;
     [SerializeField] private float maxWaitTime = 7f;
+    [SerializeField] private float stuckTimeout = 1.5f;
     [SerializeField] private LayerMask obstacleLayer;
+
+    [Header("Fleeing")]
     [SerializeField] private float fleeDistance = 3f;
     [SerializeField] private float fleeSpeed = 5f;
-    [SerializeField] private float stuckTimeout = 1.5f;
+
+    [Header("Flock Flee")]
+    [SerializeField] private float neighborRadius = 2.5f;   // who influences my flee direction
+    [SerializeField] private float alarmRadius = 2f;        // how far a panicking sheep alarms calm ones
+    [SerializeField] private float alarmDuration = 1f;      // keeps fleeing this long after the trigger ends
+    [SerializeField] private float fleeTurnSpeed = 8f;      // higher = snappier direction changes
+    [SerializeField] private float dogWeight = 1f;
+    [SerializeField] private float alignmentWeight = 1f;
+    [SerializeField] private float cohesionWeight = 0.3f;
+    [SerializeField] private float separationWeight = 0.8f;
+
+    [Header("References")]
     [SerializeField] private GameObject sheepVisual;
+
+    private static readonly List<SheepController> allSheep = new List<SheepController>();
 
     private Transform playerTransform;
     private Vector2 currentTarget;
@@ -26,9 +44,29 @@ public class SheepController : MonoBehaviour
     private float moveTimer;
     private Vector2 lastPos;
 
+    private float alarmTimer;
+    private bool directlyScared;      // dog is within fleeDistance (only these sheep alarm others)
+    private Vector2 currentFleeDir;
+
     private ContactFilter2D filter;
     private readonly Collider2D[] overlapBuffer = new Collider2D[8];
     private readonly RaycastHit2D[] castBuffer = new RaycastHit2D[8];
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        allSheep.Clear();
+    }
+
+    void OnEnable()
+    {
+        allSheep.Add(this);
+    }
+
+    void OnDisable()
+    {
+        allSheep.Remove(this);
+    }
 
     void Start()
     {
@@ -55,8 +93,19 @@ public class SheepController : MonoBehaviour
     void Update()
     {
         float distanceToPlayer = Vector2.Distance(transform.position, playerTransform.position);
+        directlyScared = distanceToPlayer < fleeDistance;
 
-        if (distanceToPlayer < fleeDistance)
+        if (directlyScared)
+        {
+            alarmTimer = alarmDuration;
+        }
+        else
+        {
+            CheckForAlarm();
+            if (alarmTimer > 0f) alarmTimer -= Time.deltaTime;
+        }
+
+        if (alarmTimer > 0f)
         {
             isFleeing = true;
             FleeFromPlayer();
@@ -66,6 +115,7 @@ public class SheepController : MonoBehaviour
             if (isFleeing)
             {
                 isFleeing = false;
+                currentFleeDir = Vector2.zero;
                 StartWaiting();
             }
             else if (!isWaiting)
@@ -114,15 +164,83 @@ public class SheepController : MonoBehaviour
 
     // ---------- Fleeing ----------
 
-    private Vector2 GetFleeDirection()
+    // Only sheep the dog is directly scaring can alarm others.
+    // Alarmed sheep don't pass it on, so panic spreads one short hop and can't chain across the field.
+    private void CheckForAlarm()
+    {
+        Vector2 pos = transform.position;
+        float alarmSqr = alarmRadius * alarmRadius;
+
+        foreach (SheepController other in allSheep)
+        {
+            if (other == this || !other.directlyScared) continue;
+
+            if (((Vector2)other.transform.position - pos).sqrMagnitude <= alarmSqr)
+            {
+                alarmTimer = alarmDuration;
+                return;
+            }
+        }
+    }
+
+    private Vector2 ComputeFlockFleeDirection()
     {
         Vector2 pos = transform.position;
         Vector2 away = (pos - (Vector2)playerTransform.position).normalized;
+
+        Vector2 alignmentSum = Vector2.zero;
+        Vector2 centerSum = Vector2.zero;
+        Vector2 separation = Vector2.zero;
+        int count = 0;
+
+        foreach (SheepController other in allSheep)
+        {
+            if (other == this || !other.isFleeing) continue;
+
+            Vector2 otherPos = other.transform.position;
+            Vector2 offset = pos - otherPos;
+            float dist = offset.magnitude;
+            if (dist > neighborRadius) continue;
+
+            count++;
+            alignmentSum += other.currentFleeDir;
+            centerSum += otherPos;
+
+            // Push away harder the closer the neighbor is
+            if (dist > 0.001f)
+                separation += (offset / dist) * (1f - dist / neighborRadius);
+        }
+
+        Vector2 desired = away * dogWeight;
+
+        if (count > 0)
+        {
+            Vector2 alignment = alignmentSum / count;
+            Vector2 cohesion = Vector2.ClampMagnitude((centerSum / count) - pos, 1f);
+            separation = Vector2.ClampMagnitude(separation, 1f);
+
+            desired += alignment * alignmentWeight
+                     + cohesion * cohesionWeight
+                     + separation * separationWeight;
+        }
+
+        // Smooth toward the new direction to avoid jitter
+        if (currentFleeDir.sqrMagnitude > 0.0001f)
+        {
+            desired = Vector2.Lerp(currentFleeDir, desired.normalized, fleeTurnSpeed * Time.deltaTime);
+        }
+
+        return desired.sqrMagnitude > 0.0001f ? desired.normalized : away;
+    }
+
+    private Vector2 GetFleeDirection(Vector2 desired)
+    {
+        Vector2 pos = transform.position;
         float[] angles = { 0f, 45f, -45f, 90f, -90f, 135f, -135f };
 
         foreach (float angle in angles)
         {
-            Vector2 dir = Quaternion.Euler(0f, 0f, angle) * away;
+            Vector2 dir = Quaternion.Euler(0f, 0f, angle) * desired;
             if (IsPathClear(pos, pos + dir * 0.5f))
                 return dir;
         }
@@ -131,7 +249,9 @@ public class SheepController : MonoBehaviour
 
     private void FleeFromPlayer()
     {
-        Vector2 fleeDirection = GetFleeDirection();
+        Vector2 desired = ComputeFlockFleeDirection();
+        Vector2 fleeDirection = GetFleeDirection(desired);
+        currentFleeDir = fleeDirection;
 
         if (fleeDirection != Vector2.zero)
         {
