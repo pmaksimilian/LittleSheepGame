@@ -6,7 +6,7 @@ public class SheepSpawner : MonoBehaviour
     public static SheepSpawner Instance { get; private set; }
 
     [SerializeField] private GameObject sheepPrefab;
-    [SerializeField] private int sheepCount = 15;
+    [SerializeField] private int sheepCount = 10;
 
     [SerializeField] private Collider2D spawnArea;
 
